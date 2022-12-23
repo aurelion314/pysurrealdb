@@ -1,6 +1,5 @@
 import pytest
-
-from mypysurreal import connect
+from pysurrealdb import connect
 
 
 def test_connect():

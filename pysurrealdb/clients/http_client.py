@@ -3,7 +3,8 @@ from requests.auth import HTTPBasicAuth
 
 
 class HttpClient:
-    def __init__(self, host, port=80, user=None, password=None, database=None, namespace=None):
+    """Representation of a connection with a SurrealDB server"""
+    def __init__(self, host=None, port=None, user=None, password=None, database=None, namespace=None):
         self.host = host
         self.port = port
         self.user = user
@@ -13,6 +14,13 @@ class HttpClient:
         self.session = requests.Session()
         self.auth = HTTPBasicAuth(user, password)
         self._set_headers()
+
+        if not host:
+            print("SurrealDB: No host specified. Using localhost.")
+            self.host = 'localhost'
+        if not port:
+            print("SurrealDB: No port specified. Using 8000.")
+            self.port = 8000
 
     def _set_headers(self, headers=None):
         if not headers:
@@ -72,11 +80,19 @@ class HttpClient:
         """Execute an SQL query and return the result."""
         return self._send(sql)
 
+    def select(self, sql):
+        """Execute an SQL query and return the result."""
+        return self.query(sql)
+
     def create(self, table, data=None):
         """Create one or many records in a SurrealDB table."""
         if isinstance(data, list):
             return self.createMany(table, data)
         return self.createOne(table, data)
+
+    def insert(self, table, data=None):
+        """Insert one or many records in a SurrealDB table."""
+        return self.create(table, data)
 
     def createOne(self, table, data=None):
         """Create a new record in a SurrealDB table."""
@@ -92,7 +108,12 @@ class HttpClient:
 
     def createMany(self, table, data=None):
         """Create a new record in a SurrealDB table."""
-        return self._send(data, method='POST', endpoint=f'key/{table}')
+        #TODO: Currently the SurrealDB API doesn't support this. So just loop through and create them one at a time. We'll need to make this more efficient eventually.
+        results = []
+        for row in data:
+            r = self.createOne(table, row)
+            results.append(r)
+        return results
 
     def update(self, table, data):
         """Update a record in a SurrealDB table."""
@@ -107,8 +128,12 @@ class HttpClient:
         if ':' in table:
             table, id = table.split(':')
         if not id:
-            return self._send(None, method='DELETE', endpoint=f'key/{table}')
+            raise ValueError("Cannot delete a record without an ID. If you meant to delete the entire table, user the drop() method.")
         return self._send(None, method='DELETE', endpoint=f'key/{table}/{id}')
+
+    def drop(self, table):
+        """Drop a SurrealDB table."""
+        return self._send(None, method='DELETE', endpoint=f'key/{table}')
 
     def get(self, table, id=None):
         """Get a record from a SurrealDB table."""

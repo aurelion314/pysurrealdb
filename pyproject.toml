@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "mypysurreal"
+name = "pysurrealdb"
 version = "0.1.0"
-description = "A library to connect to SurrealDB that doesn't require async code."
+description = "A library to connect to SurrealDB."
 readme = "README.md"
 authors = ["Aurelion314"]
 license = "MIT"
