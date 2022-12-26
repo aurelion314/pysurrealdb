@@ -11,12 +11,16 @@ class QueryBuilder:
     _group_by = None
     _select = None
     _table = None
+    _type = 'select'
+    _relate = None
+    _data = None
+    _escape_table = None
 
     def __init__(self, client):
         self.client = client
 
 
-    def where(self, *args):
+    def where(self, *args) -> 'QueryBuilder':
         """
             Add a where clause to the query.
 
@@ -33,35 +37,59 @@ class QueryBuilder:
 
         return self
 
-    def select(self, *args):
+    def select(self, *args) -> 'QueryBuilder':
         """
         Set the columns to select.
         """
         self._select = args
         return self
 
-    def table(self, table):
+    def insert(self, data):
+        """
+        Insert one or many rows.
+        """
+        return self.client.insert(self._table, data)
+
+    def update(self, data):
+        """
+        Update fields.
+        """
+        self._type = 'update'
+        self._data = data
+        # we use the query method because the update api only supports 1 row at a time.
+        return self.client.query(self._build_query())
+
+    def relate(self, noun1, verb, noun2, data=None):
+        """
+        Relate 2 objects. Noun->Verb->Noun. You can also set data to be stored with the relationship.
+        """
+        self._type = 'relate'
+        self._relate = [noun1, verb, noun2]
+        self._data = data
+        return self.client.query(self._build_query())
+
+    def table(self, table) -> 'QueryBuilder':
         """
         Set the table to query.
         """
         self._table = table
         return self
 
-    def limit(self, limit):
+    def limit(self, limit) -> 'QueryBuilder':
         """
         Set the limit.
         """
         self._limit = limit
         return self
 
-    def order_by(self, column, direction='ASC'):
+    def order_by(self, column, direction='ASC') -> 'QueryBuilder':
         """
         Set the order by.
         """
         self._order_by = [column, direction]
         return self
 
-    def group_by(self, column):
+    def group_by(self, column) -> 'QueryBuilder':
         """
         Set the group by.
         """
@@ -103,10 +131,41 @@ class QueryBuilder:
         Quote a value for use in a query.
         """
         if isinstance(value, str):
-            return f"'{value}'"
+            return f"'{self._escape_string(value)}'"
         return str(value)
 
+    def _escape_string(self, value):
+        """escapes *value* without adding quote.
+        Value should be unicode
+        """
+        escape_table = self._build_escape_table()        
+        return value.translate(escape_table)
+
+    def _build_escape_table(self):
+        if not self._escape_table:
+            self._escape_table = [chr(x) for x in range(128)]
+            self._escape_table[0] = "\\0"
+            self._escape_table[ord("\\")] = "\\\\"
+            self._escape_table[ord("\n")] = "\\n"
+            self._escape_table[ord("\r")] = "\\r"
+            self._escape_table[ord("\032")] = "\\Z"
+            self._escape_table[ord('"')] = '\\"'
+            self._escape_table[ord("'")] = "\\'"
+
+        return self._escape_table
+
     def _build_query(self):
+        """
+        Build the query.
+        """
+        if self._type == 'select':
+            return self._build_select()
+        elif self._type == 'update':
+            return self._build_update()
+        elif self._type == 'relate':
+            return self._build_relate()
+
+    def _build_select(self):
         """
         Build the query.
         """
@@ -129,3 +188,38 @@ class QueryBuilder:
             query += f' LIMIT {self._limit}'
 
         return query
+
+    def _build_update(self):
+        """
+        Build the query.
+        """
+        query = f'UPDATE {self._table} SET '
+        for key, value in self._data.items():
+            if isinstance(value, str):
+                query += f'{key}={self._quote(value)}, '
+            else:
+                query += f'{key}={value}, '
+        query = query[:-2]
+        if self._where:
+            query += ' WHERE '
+            for where in self._where:
+                query += f'{where[0]} {where[1]} {self._quote(where[2])} AND '
+            query = query[:-5]            
+        return query
+
+    def _build_relate(self):
+        """
+        Build the query.
+        """
+        query = f'RELATE {self._relate[0]}->{self._relate[1]}->{self._relate[2]} '
+        if self._data:
+            query += ' SET '
+            for key, value in self._data.items():
+                if isinstance(value, str):
+                    query += f'{key}={self._quote(value)}, '
+                else:
+                    query += f'{key}={value}, '
+            query = query[:-2]
+
+        return query
+

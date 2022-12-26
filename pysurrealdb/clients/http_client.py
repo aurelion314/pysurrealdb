@@ -21,6 +21,12 @@ class HttpClient:
         if not port:
             print("SurrealDB: No port specified. Using 8000.")
             self.port = 8000
+        if not namespace:
+            print("SurrealDB: No namespace specified. Using default.")
+            self.namespace = 'default'
+        if not database:
+            print("SurrealDB: No database specified. Using default.")
+            self.database = 'default'
 
     def _set_headers(self, headers=None):
         if not headers:
@@ -87,17 +93,26 @@ class HttpClient:
     def create(self, table, data=None):
         """Create one or many records in a SurrealDB table."""
         if isinstance(data, list):
-            return self.createMany(table, data)
-        return self.createOne(table, data)
+            return self.create_many(table, data)
+        return self.create_one(table, data)
 
     def insert(self, table, data=None):
         """Insert one or many records in a SurrealDB table."""
         return self.create(table, data)
 
-    def createOne(self, table, data=None):
+    def relate(self, *args, **kwargs):
+        """Create a relationship between two records."""
+        # Relate is not actually a method of the surreal API, but its a useful and somewhat fundamental method so we include it here. Use the QueryBuilder to create a query.
+        from ..query_builder import QueryBuilder
+        return QueryBuilder(self).relate(*args, **kwargs)
+
+
+
+
+    def create_one(self, table, data=None):
         """Create a new record in a SurrealDB table."""
         if 'id' in data:
-            id = data['id']
+            id = str(data['id'])
             if ':' in id:
                 id_table, id = id.split(':')
                 if id_table != table:
@@ -106,12 +121,12 @@ class HttpClient:
 
         return self._send(data, method='POST', endpoint=f'key/{table}')
 
-    def createMany(self, table, data=None):
+    def create_many(self, table, data=None):
         """Create a new record in a SurrealDB table."""
-        #TODO: Currently the SurrealDB API doesn't support this. So just loop through and create them one at a time. We'll need to make this more efficient eventually.
+        #TODO: Currently the SurrealDB API doesn't support multiple records, so we loop through and create them one at a time. However if the API is updated we should update this too for efficiency.
         results = []
         for row in data:
-            r = self.createOne(table, row)
+            r = self.create_one(table, row)
             results.append(r)
         return results
 
@@ -120,7 +135,7 @@ class HttpClient:
         # we need an ID to update
         if 'id' not in data:
             raise ValueError("Cannot update a record without an ID.")
-        id = data['id']
+        id = str(data['id'])
         return self._send(data, method='PUT', endpoint=f'key/{table}/{id}')
 
     def delete(self, table, id=None):
@@ -128,7 +143,7 @@ class HttpClient:
         if ':' in table:
             table, id = table.split(':')
         if not id:
-            raise ValueError("Cannot delete a record without an ID. If you meant to delete the entire table, user the drop() method.")
+            raise ValueError("Cannot delete a record without an ID. If you meant to delete the entire table, use the drop() method.")
         return self._send(None, method='DELETE', endpoint=f'key/{table}/{id}')
 
     def drop(self, table):
