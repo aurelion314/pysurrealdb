@@ -1,7 +1,7 @@
 # PySurrealDB
 An unofficial library to connect to SurrealDB.
 
-Minimal dependancies, easy to use.
+Minimal dependencies, easy to use.
 
 ---
 ## Getting Started
