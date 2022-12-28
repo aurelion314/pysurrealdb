@@ -5,7 +5,7 @@ class QueryBuilder:
     Similar to Laravel and Orator's query builder.
     """
     client = None
-    _where = None
+    _where = []
     _limit = None
     _order_by = None
     _group_by = None
@@ -18,7 +18,16 @@ class QueryBuilder:
 
     def __init__(self, client):
         self.client = client
-
+        self._where = []
+        self._limit = None
+        self._order_by = None
+        self._group_by = None
+        self._select = None
+        self._table = None
+        self._type = 'select'
+        self._relate = None
+        self._data = None
+        self._escape_table = None
 
     def where(self, *args) -> 'QueryBuilder':
         """
@@ -28,14 +37,26 @@ class QueryBuilder:
             If you pass an array, each element should be in the format ['column', 'operator', 'value'].
             If you pass a series of strings, they should be in the format 'column', 'operator' ,'value'. If no operator is specified, '=' is used.
         """
-        if len(args) == 1 and isinstance(args[0], list):
-            self._where = args[0]
-        elif len(args) == 3:
-            self._where = [args]
-        elif len(args) == 2:
-            self._where = [[args[0], '=', args[1]]]
+        self._where.append(args)
 
         return self
+
+    def where_in(self, column, values) -> 'QueryBuilder':
+        """
+        Add a where in clause to the query. 
+        """
+        self._where.append([values, 'CONTAINS', column])
+        return self
+
+    def where_contains(self, column, value) -> 'QueryBuilder':
+        return self.where_in(column, value)
+
+    def or_where(self, *args) -> 'QueryBuilder':
+        """
+        Add an or where clause to the query.
+        """
+        self._where.append(['OR'])
+        return self.where(*args)
 
     def select(self, *args) -> 'QueryBuilder':
         """
@@ -117,8 +138,49 @@ class QueryBuilder:
         """
         Execute the query and return the number of results.
         """
-        self._select = ['COUNT(*)']
-        return self.first()['COUNT(*)']
+        self._select = ['count()']
+        if not self._group_by:
+            self._group_by = 'all'
+        return self.get()[0]['count']
+
+    def sum(self, column):
+        """
+        Execute the query and return the sum of a column.
+        """
+        self._select = [f'math::sum({column})']
+        if not self._group_by:
+            self._group_by = 'all'
+        return self.get()[0][f'math::sum']
+
+    def avg(self, column):
+        """
+        Execute the query and return the average of a column.
+        """
+        self._select = [f'math::mean({column})']
+        if not self._group_by:
+            self._group_by = 'all'
+        return self.get()[0][f'math::mean']
+
+    def mean(self, column):
+        return self.avg(column)
+
+    def max(self, column):
+        """
+        Execute the query and return the max of a column.
+        """
+        self._select = [f'math::max({column})']
+        if not self._group_by:
+            self._group_by = 'all'
+        return self.get()[0][f'math::max']
+
+    def min(self, column):
+        """
+        Execute the query and return the min of a column.
+        """
+        self._select = [f'math::min({column})']
+        if not self._group_by:
+            self._group_by = 'all'
+        return self.get()[0][f'math::min']
 
     def to_sql(self):
         """
@@ -177,9 +239,7 @@ class QueryBuilder:
         query += f' FROM {self._table}'
         if self._where:
             query += ' WHERE '
-            for where in self._where:
-                query += f'{where[0]} {where[1]} {self._quote(where[2])} AND '
-            query = query[:-5]            
+            query += self._build_where(self._where)
         if self._group_by:
             query += f' GROUP BY {self._group_by}'
         if self._order_by:
@@ -188,6 +248,47 @@ class QueryBuilder:
             query += f' LIMIT {self._limit}'
 
         return query
+
+    def _build_where(self, _where):
+        """
+        Build the where clause.
+        """
+        query = ''
+        for where in _where:
+            if len(where) == 1 and isinstance(where[0], str):
+                query = query[:-4]
+                query += f' {where[0]} '
+                continue
+            # if where is a list, it's a nested where
+            if all(isinstance(x, list) for x in where):
+                query += '('
+                query += self._build_where(where)
+                query += ')'
+                query += ' AND '
+                continue
+
+            # if we only have 2 arguments, assume equals
+            if len(where) == 2:
+                where = [where[0], '=', where[1]]
+            
+            # if the first position is a list, its probably a contains clause. They are in reverse order in surreal. 
+            if isinstance(where[0], list):
+                query += '['
+                for value in where[0]:
+                    if isinstance(value, str):
+                        query += f'{self._quote(value)}, '
+                    else:
+                        query += f'{value}, '
+                query = query[:-2]
+                query += f'] {where[1]} {where[2]}'
+            elif isinstance(where[2], str):
+                query += f'{where[0]} {where[1]} {self._quote(where[2])}'
+            else:
+                query += f'{where[0]} {where[1]} {where[2]}'
+            query += ' AND '
+            
+        query = query[:-5]   
+        return query     
 
     def _build_update(self):
         """
