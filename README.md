@@ -1,7 +1,7 @@
 # PySurrealDB
 An unofficial library to connect to SurrealDB.
 
-The official surreal library is only async, has a lot of dependancies, and is currently undocumented.
+Minimal dependancies, easy to use.
 
 ---
 ## Getting Started
@@ -17,8 +17,9 @@ $ surreal start --user test --pass test
 
 
 ### Install PySurrealDB
-PySurrealDB currently has no dependancies, so it can be used on its own by cloning the repo.
-
+```
+pip install pysurrealdb
+```
 
 
 ### Examples
@@ -58,12 +59,17 @@ Example pysurrealdb.json:
         }
     }
 }
+
+# when using a config file, you do not even need to connect, you can access most functions directly:
+import pysurrealdb as surreal
+
+surreal.query('select * from test') # uses the last connection from connect() or the default connection if connect() has not been called.
 ```
 
 
 ## Query Builder
 
-You can write queries using laravel and masonite style syntax:
+You can write queries using Laravel and Orator style syntax:
 ```python
 import pysurrealdb as surreal
 conn = surreal.connection()

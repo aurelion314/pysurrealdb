@@ -6,7 +6,7 @@ class Model:
     """
     A class to represent a model that can be used to load and store data from the database.
 
-    Extend this to create your own models. Requires table name.
+    This is not fully implemented. Do not use. 
     """
     _table = None
     _data = {}

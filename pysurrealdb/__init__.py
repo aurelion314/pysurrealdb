@@ -36,6 +36,9 @@ def select(*args, **kwargs):
 def query(*args, **kwargs):
     return connection().query(*args, **kwargs)
 
+def get(*args, **kwargs):
+    return connection().get(*args, **kwargs)
+
 def insert(*args, **kwargs):
     return connection().insert(*args, **kwargs)
 
