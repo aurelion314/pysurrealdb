@@ -88,4 +88,4 @@ adults = conn.table('person').where('age', '>=', 18).order_by('age', 'desc').lim
 ```
 
 
-This project is a work in progress. Please email aurelion314@gmail.com if you have any questions or feedback. Thanks!
+This project is a work in progress. Questions and feedback are welcome! Please create an issue or use the gitter chat link at the top. Thanks!
