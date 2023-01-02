@@ -5,7 +5,7 @@ from .connections import Connection, get_config
 from .model import Model
 from .query_builder import QueryBuilder
 
-Client = Connection # I've seen some people prefer to use the name Client instead of Connection. This is just an alias. Not to be confused with the HttpClient class, which is the interface to the surreal api.
+Client = Instance = Connection # I've seen some people prefer to use the name Client/Instance instead of Connection. This is just an alias. Not to be confused with the HttpClient class, which is the interface to the surreal api.
 
 def connect(host=None, port=None, user=None, password=None, database=None, namespace=None) -> Connection:
     # Connect to the SurrealDB server. If no host is specified, the default connection will be used. This function also sets the current connection. Unlike the connection() method, which only returns the specified connection.
@@ -41,6 +41,9 @@ def get(*args, **kwargs):
 
 def insert(*args, **kwargs):
     return connection().insert(*args, **kwargs)
+
+def create(*args, **kwargs):
+    return connection().create(*args, **kwargs)
 
 def update(*args, **kwargs):
     return connection().update(*args, **kwargs)

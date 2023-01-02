@@ -13,6 +13,7 @@ class QueryBuilder:
     _table = None
     _type = 'select'
     _relate = None
+    _fetch = []
     _data = None
     _escape_table = None
 
@@ -26,6 +27,7 @@ class QueryBuilder:
         self._table = None
         self._type = 'select'
         self._relate = None
+        self._fetch = []
         self._data = None
         self._escape_table = None
 
@@ -50,6 +52,16 @@ class QueryBuilder:
 
     def where_contains(self, column, value) -> 'QueryBuilder':
         return self.where_in(column, value)
+
+    def where_not_in(self, column, values) -> 'QueryBuilder':
+        """
+        Add a where not in clause to the query. 
+        """
+        self._where.append([values, 'CONTAINSNOT', column])
+        return self
+
+    def where_contains_not(self, column, value) -> 'QueryBuilder':
+        return self.where_not_in(column, value)
 
     def or_where(self, *args) -> 'QueryBuilder':
         """
@@ -133,6 +145,16 @@ class QueryBuilder:
         if results:
             return results[0]
         return None
+
+    def fetch(self, column):
+        """
+        Add a fetch clause to the query.
+        """
+        # there is currently a bug that fetch sometimes fails without an order by. Add one in if not there.
+        if not self._order_by:
+            self._order_by = ['id', 'ASC']
+        self._fetch.append(column)
+        return self
 
     def count(self):
         """
@@ -246,6 +268,9 @@ class QueryBuilder:
             query += f' ORDER BY {self._order_by[0]} {self._order_by[1]}'
         if self._limit:
             query += f' LIMIT {self._limit}'
+        if self._fetch:
+            query += ' FETCH '
+            query += ', '.join(self._fetch)
 
         return query
 
@@ -255,11 +280,12 @@ class QueryBuilder:
         """
         query = ''
         for where in _where:
+            # Check for an OR statement
             if len(where) == 1 and isinstance(where[0], str):
-                query = query[:-4]
+                query = query[:-4] # remove the previous 'AND'
                 query += f' {where[0]} '
                 continue
-            # if where is a list, it's a nested where
+            # if all where elements are lists, it's a nested where
             if all(isinstance(x, list) for x in where):
                 query += '('
                 query += self._build_where(where)
@@ -303,9 +329,7 @@ class QueryBuilder:
         query = query[:-2]
         if self._where:
             query += ' WHERE '
-            for where in self._where:
-                query += f'{where[0]} {where[1]} {self._quote(where[2])} AND '
-            query = query[:-5]            
+            query += self._build_where(self._where)         
         return query
 
     def _build_relate(self):
