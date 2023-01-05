@@ -146,6 +146,14 @@ class QueryBuilder:
             return results[0]
         return None
 
+    def exists(self):
+        """
+        Execute the query and return True if any results are found.
+        """
+        self._select = ['id']
+        self._limit = 1
+        return bool(self.get())
+
     def fetch(self, column):
         """
         Add a fetch clause to the query.

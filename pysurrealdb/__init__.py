@@ -48,6 +48,9 @@ def create(*args, **kwargs):
 def update(*args, **kwargs):
     return connection().update(*args, **kwargs)
 
+def upsert(*args, **kwargs):
+    return connection().upsert(*args, **kwargs)
+
 def delete(*args, **kwargs):
     return connection().delete(*args, **kwargs)
 

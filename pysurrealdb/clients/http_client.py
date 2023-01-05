@@ -1,5 +1,6 @@
 import requests, json, sys
 from requests.auth import HTTPBasicAuth
+from ..query_builder import QueryBuilder
 
 
 class HttpClient:
@@ -147,13 +148,11 @@ class HttpClient:
     def relate(self, *args, **kwargs):
         """Create a relationship between two records."""
         # Relate is not actually a method of the surreal API, but its a useful and somewhat fundamental method so we include it here. Use the QueryBuilder to create a query.
-        from ..query_builder import QueryBuilder
         return QueryBuilder(self).relate(*args, **kwargs)
 
     def create_one(self, table, data=None):
         """Create a new record in a SurrealDB table."""
         # if the size of data is over 16kib, we must use create_large
-        print('data size', self.getsizeof(data))
         if self.getsizeof(data) > self.request_size_limit: # use 14000 to be safe
             return self.create_large(table, data)
 
@@ -205,6 +204,31 @@ class HttpClient:
         data_string = ','.join([f"{k} = {json.dumps(v, default=str)}" for k, v in data.items()])
         return self.query(f"UPDATE {table} SET " + data_string + f" WHERE id = {table}:{id}")
 
+    def upsert(self, table:str, data:dict, key=['id']):
+        """ Upsert a record in a SurrealDB table."""
+        if ':' in table:
+            if key != ['id']:
+                raise ValueError("Cannot upsert a record with a key that is not 'id' when using the table:id syntax.")
+            table, id = table.split(':')
+            r = self.get(table, id)
+            if r:
+                return self.update(table, data)
+            else:
+                return self.create(table, data)
+
+        if isinstance(key, str):
+            key = [key]
+        for k in key:
+            if k not in data:
+                raise ValueError(f"Cannot upsert a record without a key. Key {k} not found in data.")
+
+        condition = [[key, data[key]] for key in key]
+        existing = QueryBuilder(self).table(table).where(condition).exists()
+        if existing:
+            return self.update(table, data)
+        else:
+            return self.create(table, data)
+
     def delete(self, table, id=None):
         """Delete a record in a SurrealDB table."""
         if ':' in table:
@@ -223,7 +247,8 @@ class HttpClient:
             table, id = table.split(':')
         if not id:
             return self._send(None, method='GET', endpoint=f'key/{table}')
-        return self._send(None, method='GET', endpoint=f'key/{table}/{id}')
+        results = self._send(None, method='GET', endpoint=f'key/{table}/{id}')
+        return results[0] if results else None
 
     def getsizeof(self, data):
         """Get the size of a dictionary in bytes."""
