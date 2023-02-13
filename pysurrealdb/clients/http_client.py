@@ -1,11 +1,15 @@
 import requests, json, sys
 from requests.auth import HTTPBasicAuth
 from ..query_builder import QueryBuilder
-
+from ..config import config
 
 class HttpClient:
+    """
+    Representation of a connection with a SurrealDB server
+    
+    You should not need to use this class directly. Instead, use the Connection class via the connect() method.
+    """
     request_size_limit = 14000
-    """Representation of a connection with a SurrealDB server"""
     def __init__(self, host=None, port=None, user=None, password=None, database=None, namespace=None):
         self.host = host
         self.port = port
@@ -20,19 +24,19 @@ class HttpClient:
             if 'http:' not in self.host and 'https:' not in self.host:
                 self.host = 'http://' + self.host
         else:
-            print("SurrealDB: No host specified. Using localhost.")
+            if config.warnings: print("SurrealDB: No host specified. Using localhost.")
             self.host = 'http://localhost'
         if not port:
             if host and 'https:' in host:
                 self.port = 443
             else:
                 self.port = 8000
-            print("SurrealDB: No port specified. Using", self.port)
+            if config.warnings: print("SurrealDB: No port specified. Using", self.port)
         if not namespace:
-            print("SurrealDB: No namespace specified. Using main.")
+            if config.warnings: print("SurrealDB: No namespace specified. Using main.")
             self.namespace = 'main'
         if not database:
-            print("SurrealDB: No database specified. Using main.")
+            if config.warnings: print("SurrealDB: No database specified. Using main.")
             self.database = 'main'
 
         self._set_headers()
@@ -57,10 +61,13 @@ class HttpClient:
     def _send(self, data, method='POST', endpoint='sql'):
         """Send a request to SurrealDB and return the response."""
         url = f"{self.host}:{self.port}/{endpoint}"
-        if isinstance(data, str):
-            response = self.session.request(method, url, data=data, auth=self.auth)
-        else:
-            response = self.session.request(method, url, json=data, auth=self.auth)
+
+        if not isinstance(data, str):
+            data = json.dumps(data, default=str, ensure_ascii=False)
+        
+        data = data.encode('utf-8')
+        response = self.session.request(method, url, data=data, auth=self.auth)
+        
         if not response.ok:
             raise ConnectionError("Request to SurrealDB failed.", response.content)
         
@@ -145,11 +152,6 @@ class HttpClient:
         data_string = ','.join([f"{k}: {json.dumps(v, default=str)}" for k, v in data.items()])
         return self.query(f"INSERT INTO {table} " + "{"+data_string +"}")
 
-    def relate(self, *args, **kwargs):
-        """Create a relationship between two records."""
-        # Relate is not actually a method of the surreal API, but its a useful and somewhat fundamental method so we include it here. Use the QueryBuilder to create a query.
-        return QueryBuilder(self).relate(*args, **kwargs)
-
     def create_one(self, table, data=None):
         """Create a new record in a SurrealDB table."""
         # if the size of data is over 16kib, we must use create_large
@@ -205,29 +207,7 @@ class HttpClient:
         return self.query(f"UPDATE {table} SET " + data_string + f" WHERE id = {table}:{id}")
 
     def upsert(self, table:str, data:dict, key=['id']):
-        """ Upsert a record in a SurrealDB table."""
-        if ':' in table:
-            if key != ['id']:
-                raise ValueError("Cannot upsert a record with a key that is not 'id' when using the table:id syntax.")
-            table, id = table.split(':')
-            r = self.get(table, id)
-            if r:
-                return self.update(table, data)
-            else:
-                return self.create(table, data)
-
-        if isinstance(key, str):
-            key = [key]
-        for k in key:
-            if k not in data:
-                raise ValueError(f"Cannot upsert a record without a key. Key {k} not found in data.")
-
-        condition = [[key, data[key]] for key in key]
-        existing = QueryBuilder(self).table(table).where(condition).exists()
-        if existing:
-            return self.update(table, data)
-        else:
-            return self.create(table, data)
+        raise DeprecationWarning("upsert from the client is deprecated. Please use connection object instead.")
 
     def delete(self, table, id=None):
         """Delete a record in a SurrealDB table."""

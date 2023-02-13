@@ -1,7 +1,7 @@
 import pytest
 from pysurrealdb import connect
 
-conn = connect('localhost', 8000, 'test', 'test', 'test', 'test')
+conn = connect('localhost', 8000, 'test', 'test', 'test', 'test', 'http')
 
 def test_connect():
     assert conn is not None
@@ -9,13 +9,15 @@ def test_connect():
 def test_query():
     assert conn.query('SELECT * FROM emptytable') == []
 
-def test_delete():
-    records = conn.delete('test:test')
-    assert records == []
-
 def test_create():
+    conn.drop('test')
     records = conn.create('test', {'id': 'test', 'name': 'test'})
     assert records == [{'id': 'test:test', 'name': 'test'}]
+
+def test_delete():
+    conn.upsert('test', {'id': 'test', 'name': 'test'})
+    records = conn.delete('test:test')
+    assert records == []
 
 def test_update():
     conn.drop('test')

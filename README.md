@@ -36,11 +36,17 @@ conn.create('person', {'name': 'Mike'})
 conn.query('select * from person')
 ```
 
-To connect to a live SurrealDB server, you can specify the connection info either in the connect call, or in a config file.
+You can specify additional connection info either in the connect call, or in a config file.
 
 ```python
 import pysurrealdb as surreal
 conn = surreal.connect(host='surreal.com', port=8000, user='user', password='pass', database='db', namespace='ns')
+```
+
+Both http and websocket are supported. Specify which to use with the client keyword.
+```python
+conn = surreal.connect(client='websocket')
+# Websocket was added and made the default as of version 0.3. Try http if you run into issues, and please report any bugs you find!
 ```
 
 Optional Config file:
@@ -59,6 +65,7 @@ Example pysurrealdb.json:
             "password": "test"
             "database": "test",
             "namespace": "test",
+            "client": "http",
         }
     }
 }
@@ -85,6 +92,22 @@ conn.insert('person', [{'name': 'Mike', 'age': 31}, {'name':'Mr P'}])
 first_person = conn.table('person').where('name', 'Mike').first()
 
 adults = conn.table('person').where('age', '>=', 18).order_by('age', 'desc').limit(10).get()
+```
+
+## Methods
+Some of the basic methods available:
+```python
+query(sql)
+get(table, id='')
+insert(table, data)
+create(table, data)
+update(table, data)
+upsert(table, data)
+delete(table, id)
+drop(table)
+relate(noun, verb, noun2, data={})
+
+# Most methods accept a table or table:id as the main arguement. The data is also checked for an ID when relevant.
 ```
 
 
