@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 class Config:
     warnings: bool = True
     connections: dict = field(default_factory=dict)
-    default_client: str = 'websocket'
+    default_client: str = 'http'
 
 def get_config_from_file() -> dict:
     # check config file for connection details. It should be called 'pysurrealdb.json'
