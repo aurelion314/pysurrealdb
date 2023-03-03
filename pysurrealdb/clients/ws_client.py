@@ -50,7 +50,7 @@ class WSClient:
         self.sock = websocket.create_connection(url)
 
         if self._namespace and self._database:
-            self.use(self._database, self._namespace)
+            self.use(self._namespace, self._database)
 
         if self._user and self._password:
             self.login(self._user, self._password)
