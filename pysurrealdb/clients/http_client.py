@@ -1,7 +1,7 @@
 import requests, json, sys
 from requests.auth import HTTPBasicAuth
-from ..query_builder import QueryBuilder
 from ..config import config
+from ..err import QueryError, SurrealDBError
 
 class HttpClient:
     """
@@ -69,19 +69,19 @@ class HttpClient:
         response = self.session.request(method, url, data=data, auth=self.auth)
         
         if not response.ok:
-            raise ConnectionError("Request to SurrealDB failed.", response.content)
+            raise SurrealDBError("Request to SurrealDB failed.", response.content)
         
         r = response.json()
         if len(r) > 1:
             results = []
             for row in r:
                 if row['status'] != 'OK':
-                    raise ConnectionError("Query failed.", row['result'])
-            results.append(row['result'])
+                    raise QueryError("Query failed.", row['result'])
+                results.append(row['result'])
             return results
                 
         if r[0]['status'] != 'OK':
-            raise ConnectionError("Query failed.", r[0])
+            raise QueryError("Query failed.", r[0])
         return r[0]['result']
 
     def _send_chunks(self, data, method='POST', endpoint='sql'):

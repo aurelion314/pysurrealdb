@@ -3,8 +3,8 @@ import websocket
 import time
 import random
 
-from ..query_builder import QueryBuilder
 from ..config import config
+from ..err import QueryError, SurrealDBError
 from ..utils import verify_table_and_id
 
 class WSClient:
@@ -126,7 +126,18 @@ class WSClient:
 
     def query(self, query):
         """Run a query on the current database"""
-        return self._send_receive('query', query)[0]['result']
+        r = self._send_receive('query', query)
+        if len(r) > 1:
+            results = []
+            for row in r:
+                if row['status'] != 'OK':
+                    raise QueryError("Query failed.", row['result'])
+                results.append(row['result'])
+            return results
+                
+        if r[0]['status'] != 'OK':
+            raise QueryError("Query failed.", r[0])
+        return r[0]['result']
 
     def create(self, table, data=None):
         """Create one or many records in a SurrealDB table."""
