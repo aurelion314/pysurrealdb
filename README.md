@@ -46,7 +46,7 @@ conn = surreal.connect(host='surreal.com', port=8000, user='user', password='pas
 Both http and websocket are supported. Specify which to use with the client keyword.
 ```python
 conn = surreal.connect(client='websocket')
-# Websocket was added and made the default as of version 0.3. Try http if you run into issues, and please report any bugs you find!
+# Websocket was added as of version 0.3 (requires websockets library). Try http if you run into issues, and please report any bugs you find!
 ```
 
 Optional Config file:
